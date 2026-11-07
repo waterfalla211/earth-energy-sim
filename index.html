@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>지구 열수지 시뮬레이터</title>
+<style>
+@font-face{font-family:"BarunpenFile";font-weight:400;src:url("NanumBarunpenR.ttf") format("truetype"),url("NanumBarunpenR.otf") format("opentype")}
+@font-face{font-family:"BarunpenFile";font-weight:700;src:url("NanumBarunpenB.ttf") format("truetype"),url("NanumBarunpenB.otf") format("opentype")}
+:root{
+  --navy:#0F2A4A; --sky:#5BB5F0; --sun:#F6C945; --heat:#E2563B; --leaf:#4CAF6A; --bg:#F6F8FB;
+  --font:"NanumBarunpen","Nanum Barunpen","나눔바른펜","BarunpenFile","Malgun Gothic","Apple SD Gothic Neo",sans-serif; /* ← 글씨체는 이 줄만 바꾸면 됩니다 */
+  --card:#fff; --line:#dbe3ee; --muted:#5b6b80; --ok:#1f8f4e; --bad:#c0392b;
+}
+*{box-sizing:border-box}
+button,input{font-family:inherit}
+body{margin:0;background:var(--bg);color:#1b2a3d;font-family:var(--font);line-height:1.5}
+header{background:linear-gradient(135deg,#0F2A4A,#17406b);color:#fff;padding:16px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header h1{margin:0;font-size:22px}
+header p{margin:2px 0 0;font-size:13px;opacity:.85}
+header .grow{flex:1}
+.btn{border:0;border-radius:10px;padding:9px 16px;font:inherit;font-weight:700;cursor:pointer}
+.btn-light{background:#fff;color:var(--navy)}
+.btn-reset{background:var(--heat);color:#fff;width:100%;padding:11px;font-size:16px}
+.btn:focus-visible,.info:focus-visible,.chip:focus-visible,input:focus-visible,.tab:focus-visible{outline:3px solid var(--sky);outline-offset:2px}
+main{max-width:1180px;margin:0 auto;padding:18px 16px 40px;display:grid;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 1px 3px rgba(15,42,74,.06)}
+.card h2{margin:0 0 10px;font-size:17px;color:var(--navy);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.top{display:grid;grid-template-columns:260px 1fr;gap:16px}
+@media(max-width:860px){.top{grid-template-columns:1fr}}
+.ctrl{margin-bottom:18px}
+.ctrl label{display:flex;align-items:center;gap:6px;font-weight:700;margin-bottom:4px}
+.ctrl .val{font-size:26px;font-weight:800;color:var(--navy)}
+.ctrl .sub{font-size:12px;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--heat)}
+#albedo{accent-color:var(--sky)}
+.info{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--sky);color:var(--sky);background:#fff;font:700 12px/1 Georgia,serif;cursor:pointer;padding:0;flex:none}
+.info:hover{background:var(--sky);color:#fff}
+.tabs{display:flex;gap:6px;margin-left:auto}
+.tab{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer}
+.tab[aria-pressed=true]{background:var(--navy);color:#fff;border-color:var(--navy)}
+svg{width:100%;height:auto;display:block;border-radius:10px}
+.note{font-size:12px;color:var(--muted);margin:8px 0 0}
+.results{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.res{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px}
+.res .t{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.res .n{font-size:28px;font-weight:800;color:var(--navy)}
+.res .n small{font-size:14px;font-weight:700;margin-left:3px}
+.res .s{font-size:12px;color:var(--muted)}
+.res.hot .n{color:var(--heat)}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.cmp{grid-template-columns:1fr}}
+.cmpbox{border-radius:12px;padding:14px;border:1px solid var(--line)}
+.cmpbox.no{background:#eef3fa}.cmpbox.yes{background:#fff4ee}
+.cmpbox h3{margin:0 0 4px;font-size:15px}
+.big{font-size:30px;font-weight:800}
+.bar{height:16px;border-radius:8px;background:#dbe3ee;margin:8px 0 4px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:8px}
+.gh{margin-top:12px;text-align:center;background:var(--navy);color:#fff;border-radius:12px;padding:10px;font-size:15px}
+.gh b{font-size:24px;color:var(--sun)}
+.chain{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;align-items:stretch}
+@media(max-width:900px){.chain{grid-template-columns:1fr}}
+.step{position:relative;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px 6px;text-align:center}
+.step .h{font-size:11.5px;font-weight:700;color:var(--navy);min-height:30px;line-height:1.3}
+.step .v{font-size:16px;font-weight:800}
+.step .d{font-size:11px;color:var(--muted);line-height:1.3}
+.step:not(:last-child)::after{content:"➡";position:absolute;right:-12px;top:50%;transform:translateY(-50%);color:var(--navy);font-size:13px;z-index:2}
+@media(max-width:900px){.step:not(:last-child)::after{content:"⬇";right:50%;top:auto;bottom:-16px;transform:translateX(50%)}}
+.up{color:var(--heat)}.down{color:#2b7bd1}.same{color:var(--muted)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left}
+th{background:#eaf1fa;color:var(--navy)}
+td.ok{color:var(--ok);font-weight:800;text-align:center}
+td.bad{color:var(--bad);font-weight:800;text-align:center}
+.scroll{overflow-x:auto}
+code,.f{background:#eef3fa;border-radius:6px;padding:1px 6px;font-family:Consolas,monospace}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin-top:8px;align-items:center}
+.legend i{display:inline-block;width:26px;height:12px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.info-lg{width:34px;height:34px;font-size:18px;border-width:2.5px}
+.pop{position:absolute;z-index:70;width:min(320px,calc(100vw - 24px));background:#fff;border:2px solid var(--sky);border-radius:12px;padding:11px 13px;box-shadow:0 8px 24px rgba(15,42,74,.28);font-size:13.5px;line-height:1.55;color:#1b2a3d}
+.pop[hidden]{display:none}
+.pop b{color:var(--navy)}
+/* 용어집 */
+.overlay{position:fixed;inset:0;background:rgba(15,42,74,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:16px;max-width:760px;width:100%;max-height:88vh;overflow:auto;padding:20px}
+.modal h2{margin:0 0 4px;color:var(--navy)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.chip{border:1px solid var(--sky);background:#fff;color:var(--navy);border-radius:999px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--sky);color:#fff}
+.defbox{background:var(--bg);border-radius:12px;padding:14px;border-left:5px solid var(--sky);min-height:110px}
+.defbox h3{margin:0 0 6px;color:var(--navy)}
+.close{float:right}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>지구 열수지 시뮬레이터</h1>
+    <p>통합과학2 · 지구 환경 변화 — 반사율과 온실 효과가 정하는 지표 평균 기온</p>
+  </div>
+  <div class="grow"></div>
+  <button class="btn btn-light" id="openGlossary" type="button" aria-label="용어집 열기">용어집 <span class="info" style="pointer-events:none;vertical-align:middle">i</span></button>
+</header>
+
+<main>
+  <section class="top">
+    <div class="card" aria-label="조절 패널">
+      <h2>조절 변수</h2>
+      <div class="ctrl">
+        <label for="albedo">지구 반사율(알베도) <button class="info" type="button" data-tip="albedo" aria-label="반사율 설명 보기">i</button></label>
+        <div class="val"><span id="albedoVal">0.30</span> <span class="sub" id="albedoPct">(30 %)</span></div>
+        <input id="albedo" type="range" min="0.10" max="0.50" step="0.01" value="0.30">
+      </div>
+      <div class="ctrl">
+        <label for="eps">온실 효과 세기 <button class="info" type="button" data-tip="eps" aria-label="온실 효과 세기 설명 보기">i</button></label>
+        <div class="val"><span id="epsVal">89.7</span> %</div>
+        <input id="eps" type="range" min="50" max="99" step="0.01" value="89.66">
+      </div>
+      <button class="btn btn-reset" id="reset" type="button">초기화</button>
+    </div>
+
+    <div class="card">
+      <h2>에너지 흐름도
+        <button class="info" type="button" data-tip="flow" aria-label="흐름도 설명 보기">i</button>
+      </h2>
+      <div id="diagram"></div>
+      <div class="legend"><span><i style="background:#F5B800"></i>태양 복사 에너지</span><span><i style="background:#E2563B"></i>지구 복사 에너지</span><span><i style="background:#F28C28"></i>열 전달(물의 증발, 대류와 전도)</span></div>
+    </div>
+  </section>
+
+  <section class="card" aria-live="polite">
+    <h2>결과 수치</h2>
+    <div class="results">
+      <div class="res"><div class="t">지표 평균 기온 <button class="info" type="button" data-tip="T" aria-label="설명">i</button></div><div class="n"><span id="rT">–</span><small>°C</small></div><div class="s"><span id="rTK">–</span> K</div></div>
+      <div class="res"><div class="t">대기가 없을 때의 기온 <button class="info" type="button" data-tip="T0" aria-label="설명">i</button></div><div class="n"><span id="rT0">–</span><small>°C</small></div><div class="s"><span id="rT0K">–</span> K</div></div>
+      <div class="res hot"><div class="t">온실 효과로 오른 온도 <button class="info" type="button" data-tip="GH" aria-label="설명">i</button></div><div class="n"><span id="rGH">–</span><small>K</small></div></div>
+      <div class="res"><div class="t">기준 대비 변화 <button class="info" type="button" data-tip="diff" aria-label="설명">i</button></div><div class="n"><span id="rDiff">–</span><small>K</small></div></div>
+      <div class="res"><div class="t">지표 방출 복사 에너지 <button class="info" type="button" data-tip="Es" aria-label="설명">i</button></div><div class="n"><span id="rEs">–</span><small>W/m²</small></div></div>
+      <div class="res"><div class="t">우주로 나가는 에너지 <button class="info" type="button" data-tip="out" aria-label="설명">i</button></div><div class="n"><span id="rOut">–</span><small>W/m²</small></div></div>
+    </div>
+  </section>
+
+  <section class="card" style="padding:10px 14px">
+    <h2 style="font-size:15px;margin-bottom:8px">지구 온난화의 메커니즘과 열수지 변동 <button class="info" type="button" data-tip="warming" aria-label="지구 온난화 설명 보기">i</button></h2>
+    
+    <div class="chain" id="chain"></div>
+  </section>
+</main>
+
+<div class="pop" id="pop" role="tooltip" hidden></div>
+
+<!-- 용어집 -->
+<div class="overlay" id="overlay" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="gTitle">
+    <button class="btn btn-light close" id="closeGlossary" type="button" style="border:1px solid var(--line)">닫기 ✕</button>
+    <h2 id="gTitle">용어집</h2>
+    <div class="note">용어를 누르면 정의가 나옵니다.</div>
+    <div class="chips" id="chips"></div>
+    <div class="defbox" id="defbox" aria-live="polite"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ===================== 용어집 데이터 (정의는 여기서 수정) =====================
+   term: 용어 이름, def: 정의 (여기서 수정) */
+const GLOSSARY = {
+  radiation_eq:{term:"지구의 복사 평형",
+    def:"지구는 태양 복사 에너지를 흡수하고, 흡수한 만큼 지구 복사 에너지를 우주 공간으로 방출한다. → 지구의 연평균 기온이 일정하게 유지된다."},
+  rad_eq:{term:"복사 평형",
+    def:"물체가 흡수한 복사 에너지량과 방출한 복사 에너지량이 같은 상태로, 이때 물체의 온도가 일정하게 유지된다."},
+  solar:{term:"태양 복사 에너지",
+    def:"태양이 방출하는 에너지이다. 주로 파장이 짧은 가시광선으로, 지구의 대기를 잘 투과한다."},
+  earthrad:{term:"지구 복사 에너지",
+    def:"지구가 방출하는 에너지이다. 대부분 파장이 긴 적외선으로, 대기 중의 온실 기체에 의해 잘 흡수된다."},
+  ghg:{term:"온실 기체",
+    def:"온실 효과를 일으키는 기체"},
+  greenhouse:{term:"온실 효과",
+    def:"온실 기체가 태양 복사 에너지를 대부분 통과시키고, 지표에서 방출되는 지구 복사 에너지를 흡수하였다가 일부를 지표로 재복사하여 대기가 없을 때보다 대기가 있을 때 더 높은 온도로 유지되는 효과"},
+  warming:{term:"지구 온난화",
+    def:"대기 중 온실 기체의 양이 증가하면서 온실 효과가 강화되어 지구의 평균 기온이 높아지는 현상"}
+};
+
+/* ===================== 모형 ===================== */
+const SIGMA = 5.670374e-8;
+const K = 1361/4/100;                 // 100 단위 = 340.25 W/m² → 1 단위 = 3.4025 W/m²
+const ATM_SOLAR = 23, LAT_CONV = 29, EVAP = 24, CONV = 5;
+const REFL_ATM_SHARE = 23/30;          // 반사 중 대기 몫
+const DOWN_FRAC = 98/156;              // 대기 방출 중 지표로 재복사하는 비율
+const A0 = 0.30, EPS0 = 104/116;
+
+function model(A, eps){
+  const refl = 100*A;
+  const reflAtm = refl*REFL_ATM_SHARE, reflSfc = refl - reflAtm;
+  const reachSfc = 100 - reflAtm - ATM_SOLAR;          // 지표면에 도달
+  const Ss = reachSfc - reflSfc;                        // 지표 흡수(태양)
+  const Es = (Ss + DOWN_FRAC*(ATM_SOLAR+LAT_CONV) - LAT_CONV) / (1 - DOWN_FRAC*eps);
+  const absIR = eps*Es, window_ = Es - absIR;
+  const G = ATM_SOLAR + absIR + LAT_CONV;
+  const down = DOWN_FRAC*G, up = G - down;
+  const T = Math.pow(Es*K/SIGMA, 0.25);
+  const E0 = 100 - refl;
+  const T0 = Math.pow(E0*K/SIGMA, 0.25);
+  return {A,eps,refl,reflAtm,reflSfc,reachSfc,Ss,Es,absIR,window:window_,G,down,up,T,E0,T0,
+    atmIn: ATM_SOLAR+absIR+LAT_CONV, atmOut: G,
+    sfcIn: Ss+down, sfcOut: Es+LAT_CONV,
+    spaceIn: 100, spaceOut: refl+window_+up,
+    earthIn: 100-refl, earthOut: window_+up};
+}
+const BASE = model(A0, EPS0);
+
+/* ===================== 유틸 ===================== */
+const $ = id => document.getElementById(id);
+const f = v => (Math.abs(v-Math.round(v))<0.05) ? String(Math.round(v)) : v.toFixed(1);
+const f1 = v => v.toFixed(1);
+const C = k => k-273.15;
+const sgn = v => (v>=0?"+":"−")+Math.abs(v).toFixed(1);
+
+/* ===================== 흐름도 (SVG) ===================== */
+const CY="#F5B800", CR="#E2563B", CO="#F28C28";
+const MK={[CY]:"mkY",[CR]:"mkR",[CO]:"mkO"};
+const sw_of = v => 10 + 0.2*v;               // 값 → 화살표 굵기(px)
+function arr(pts,v,color){
+  const sw=sw_of(v), L=1.8*sw, n=pts.length, a=pts[n-2], b=pts[n-1];
+  const dx=b[0]-a[0], dy=b[1]-a[1], len=Math.hypot(dx,dy), ux=dx/len, uy=dy/len;
+  const end=[b[0]-ux*L, b[1]-uy*L];
+  const d=pts.slice(0,n-1).map((p,i)=>(i?"L":"M")+p[0]+","+p[1]).join(" ")+" L"+end[0]+","+end[1];
+  const mid=[(pts[0][0]+end[0])/2,(pts[0][1]+end[1])/2];
+  return {svg:`<path d="${d}" fill="none" stroke="${color}" stroke-width="${sw}" marker-end="url(#${MK[color]})"/>`, mid};
+}
+function badge(x,y,v,color){
+  const t=f(v), w=t.length>=4?27:(t.length===3?23:18), fs=t.length>=4?15:17;
+  return `<rect x="${x-w}" y="${y-18}" width="${2*w}" height="36" rx="18" fill="#fff" stroke="${color}" stroke-width="4"/>`+
+         `<text x="${x}" y="${y+6}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="#0F2A4A">${t}</text>`;
+}
+/* 이름표: 흰 바탕 + 색 테두리, 글자는 항상 진한 남색 */
+function lab(cx,cy,ls,color){
+  const w=Math.max(...ls.map(s=>s.length))*15+18, h=ls.length*19+10;
+  return `<rect x="${cx-w/2}" y="${cy-h/2}" width="${w}" height="${h}" rx="9" fill="#fff" stroke="${color}" stroke-width="2.5"/>`+
+    ls.map((s,i)=>`<text x="${cx}" y="${cy-h/2+19+i*19}" text-anchor="middle" font-size="15" font-weight="700" fill="#0F2A4A">${s}</text>`).join("");
+}
+function flow(pts,v,color,labelAt,ls){
+  const a=arr(pts,v,color);
+  return a.svg + badge(a.mid[0],a.mid[1],v,color) + lab(labelAt[0],labelAt[1],ls,color);
+}
+function tag(y,t,fill){return `<rect x="8" y="${y}" width="46" height="24" rx="7" fill="${fill}"/><text x="31" y="${y+17}" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">${t}</text>`;}
+function pill(cx,cy,w,t,fill,tc){return `<rect x="${cx-w/2}" y="${cy-16}" width="${w}" height="32" rx="16" fill="${fill}"/><text x="${cx}" y="${cy+6}" text-anchor="middle" font-size="17" font-weight="800" fill="${tc}">${t}</text>`;}
+
+function cloud(cx,cy,k){
+  const d="M-55,20 A22,22 0 0 1 -50,-22 A30,30 0 0 1 8,-30 A26,26 0 0 1 56,-6 A19,19 0 0 1 55,20 Z";
+  return `<g transform="translate(${cx},${cy}) scale(${k})"><path d="${d}" fill="#fff" stroke="#8fb8de" stroke-width="3" stroke-linejoin="round"/><path d="M-28,-6 q10,-12 24,-6 M14,-14 q12,-4 20,6" fill="none" stroke="#cfe3f5" stroke-width="3" stroke-linecap="round"/></g>`;
+}
+function drawFlow(m){
+  const SP=170, AT=450, TOP=60, BASE=455;
+  const mkr=(id,c)=>`<marker id="${id}" viewBox="0 0 10 10" refX="0" refY="5" markerWidth="1.8" markerHeight="2.2" orient="auto" preserveAspectRatio="none"><path d="M0,0 L10,5 L0,10 Z" fill="${c}"/></marker>`;
+  let s=`<svg viewBox="0 0 1000 720" role="img" aria-label="지구 열수지 에너지 흐름도: 우주, 대기, 지표 사이의 에너지 출입">
+  <defs>
+    <linearGradient id="gSp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b1f38"/><stop offset="1" stop-color="#1b4373"/></linearGradient>
+    <linearGradient id="gAt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe0f7"/><stop offset="1" stop-color="#e9f5fd"/></linearGradient>
+    <linearGradient id="gSf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5fae72"/><stop offset="1" stop-color="#2f7d45"/></linearGradient>
+    <radialGradient id="gSun"><stop offset="0" stop-color="#fff6c2"/><stop offset="1" stop-color="#F6C945"/></radialGradient>
+    ${mkr("mkY",CY)}${mkr("mkR",CR)}${mkr("mkO",CO)}
+  </defs>
+  <rect x="0" y="0" width="1000" height="${SP}" fill="url(#gSp)"/>
+  <rect x="0" y="${SP}" width="1000" height="${AT-SP}" fill="url(#gAt)"/>
+  <rect x="0" y="${AT}" width="1000" height="${720-AT}" fill="url(#gSf)"/>
+  ${tag(SP-34,"우주","#0F2A4A")}${tag(SP+8,"대기","#2f7fc1")}${tag(AT+8,"지표","#1f5f33")}
+  <circle cx="40" cy="30" r="20" fill="url(#gSun)"/>
+  <text x="72" y="37" font-size="18" font-weight="800" fill="#fff">태양 복사 에너지 ${f(100)}</text>`;
+  // 구름 (대기 영역)
+  s+=cloud(150,250,1.15)+cloud(420,262,1.3)+cloud(700,250,1.15)+cloud(900,262,1.0);
+  // 지표면 방출 116 = 104 + 12 : 아래에서 하나로 묶이는 선
+  const x104=540, x12=640;
+  s+=`<rect x="${x104-sw_of(m.absIR)/2}" y="${BASE-6}" width="${x12-x104+(sw_of(m.absIR)+sw_of(m.window))/2}" height="22" rx="8" fill="${CR}"/>`;
+  // --- 태양 복사 (노랑) ---
+  s+=flow([[100,TOP],[100,320]],ATM_SOLAR,CY,[100,365],["대기의 흡수","(태양 복사)"]);
+  s+=flow([[210,330],[210,125]],m.reflAtm,CY,[210,85],["대기의 반사","및 산란"]);
+  s+=flow([[320,TOP],[320,480]],m.reachSfc,CY,[320,300],["지표면","도달"]);
+  s+=flow([[425,BASE],[425,125]],m.reflSfc,CY,[425,85],["지표면","반사"]);
+  // --- 지구 복사 (빨강) ---
+  s+=flow([[x104,BASE],[x104,300]],m.absIR,CR,[x104,245],["대기의 흡수","(지구 복사)"]);
+  s+=flow([[x12,BASE],[x12,125]],m.window,CR,[x12,85],["우주로","손실"]);
+  // --- 열 전달 (주황) ---
+  s+=flow([[735,BASE],[735,300]],EVAP,CO,[735,245],["물의","증발"]);
+  s+=flow([[805,BASE],[805,300]],CONV,CO,[805,245],["대류와","전도"]);
+  // --- 대기의 복사 / 재복사 (빨강) ---
+  s+=flow([[875,345],[875,125]],m.up,CR,[875,85],["대기의","복사"]);
+  s+=flow([[950,300],[950,485]],m.down,CR,[950,245],["대기의","재복사"]);
+  // --- 영역 이름표 ---
+  s+=pill((x104+x12)/2,BASE+52,170,"지표면 방출 "+f(m.Es),CR,"#fff");
+  s+=pill(372,BASE+60,160,"지표면 흡수 "+f(m.Ss),CY,"#0F2A4A");
+  // --- 대기가 없을 때 기준 (지표 쪽 아이콘 카드) ---
+  const gh=m.T-m.T0;
+  s+=`<g>
+    <rect x="18" y="582" width="430" height="124" rx="16" fill="#fff" opacity=".96"/>
+    <g transform="translate(36,596)">
+      <rect x="14" y="2" width="18" height="62" rx="9" fill="#e8eef6" stroke="#0F2A4A" stroke-width="2.5"/>
+      <circle cx="23" cy="72" r="14" fill="#2b7bd1" stroke="#0F2A4A" stroke-width="2.5"/>
+      <rect x="19" y="26" width="8" height="46" rx="4" fill="#2b7bd1"/>
+    </g>
+    <text x="98" y="612" font-size="15" font-weight="700" fill="#35506f">대기가 없을 때 지표 평균 기온</text>
+    <text x="98" y="652" font-size="34" font-weight="800" fill="#2b7bd1">${f1(C(m.T0))} °C</text>
+    <text x="262" y="650" font-size="15" font-weight="700" fill="#0F2A4A">(${f1(m.T0)} K)</text>
+    <text x="98" y="682" font-size="15" font-weight="700" fill="#c0392b">대기가 있으면 ${sgn(gh)} K 높아짐 (온실 효과)</text>
+  </g>`;
+  s+=`</svg>`;
+  return s;
+}
+
+/* ===================== 렌더 ===================== */
+let CUR=null;
+function render(){
+  const A=parseFloat($("albedo").value), eps=parseFloat($("eps").value)/100;
+  const m=model(A,eps); CUR=m;
+  $("albedoVal").textContent=A.toFixed(2); $("albedoPct").textContent="("+Math.round(A*100)+" %)";
+  $("epsVal").textContent=(eps*100).toFixed(1);
+  $("diagram").innerHTML=drawFlow(m);
+  $("rT").textContent=f1(C(m.T)); $("rTK").textContent=f1(m.T);
+  $("rT0").textContent=f1(C(m.T0)); $("rT0K").textContent=f1(m.T0);
+  const gh=m.T-m.T0; $("rGH").textContent=sgn(gh);
+  $("rDiff").textContent=sgn(m.T-BASE.T);
+  $("rEs").textContent=(m.Es*K).toFixed(1);
+  const out=(m.window+m.up); $("rOut").textContent=(out*K).toFixed(1);
+  // 온난화 단계
+  const d=(cur,base,unit,dec)=>{const x=cur-base;const cls=Math.abs(x)<0.05?"same":(x>0?"up":"down");
+    const t=Math.abs(x)<0.05?"기준과 같음":(x>0?"▲ +":"▼ −")+Math.abs(x).toFixed(dec)+unit;return `<span class="${cls}">${t}</span>`;};
+  const steps=[
+    ["① 대기 중 온실 기체의 농도 증가(온실 효과 세기)",(eps*100).toFixed(1)+" %",d(eps*100,EPS0*100,"%p",1)],
+    ["② 대기가 흡수하는 지구 복사 에너지량",f(m.absIR),d(m.absIR,BASE.absIR,"",1)],
+    ["③ 대기가 지표로 재복사하는 에너지량",f(m.down),d(m.down,BASE.down,"",1)],
+    ["④ 지표가 흡수하는 에너지량(태양+재복사)",f(m.sfcIn),d(m.sfcIn,BASE.sfcIn,"",1)],
+    ["⑤ 지표 온도 상승",f1(C(m.T))+" °C",d(m.T,BASE.T,"K",1)]
+  ];
+  $("chain").innerHTML=steps.map(s=>`<div class="step"><div class="h">${s[0]}</div><div class="v">${s[1]}</div><div class="d">${s[2]}</div></div>`).join("");
+  updatePop();
+}
+$("albedo").addEventListener("input",render);
+$("eps").addEventListener("input",render);
+$("reset").onclick=()=>{$("albedo").value="0.30";$("eps").value="89.66";render()};
+
+/* ===================== ⓘ 설명 말풍선 (세부 내용은 여기서 수정) ===================== */
+const U = v => (v*K).toFixed(1);
+const TIPS = {
+  albedo:{term:"albedo", html:()=>"지구에 들어오는 태양 복사 에너지 중 반사·산란되어 우주로 되돌아가는 비율입니다.<br>기준값은 <b>0.30</b>(30 %)이며, 대기의 반사·산란(23)과 지표면 반사(7)를 합한 값입니다. 값을 바꾸면 두 반사의 비율(23 : 7)은 그대로 두고 전체 반사량만 달라집니다."},
+  eps:{term:"greenhouse", html:()=>"지표가 방출한 지구 복사 에너지 중 <b>대기가 흡수하는 비율</b>입니다. 온실 기체가 많아질수록 커진다고 가정합니다.<br>기준값은 104 ÷ 116 ≈ <b>89.7 %</b>입니다."},
+  flow:{term:"budget", html:()=>"숫자는 지구에 들어오는 태양 복사 에너지를 <b>100</b>으로 둔 상대값입니다. (100 = 340.25 W/m², 태양 상수 1361 W/m² ÷ 4)<br>화살표 굵기는 값에 비례합니다.<br>노랑은 태양 복사, 빨강은 지구 복사, 주황은 열 전달(물의 증발, 대류와 전도)입니다."},
+  T:{term:"radiation_eq", html:()=>"지표가 방출하는 에너지 "+f(CUR.Es)+"(= "+U(CUR.Es)+" W/m²)를 스테판-볼츠만 법칙 E = σT⁴ 에 넣어 계산한 평균 기온입니다."},
+  T0:{term:null, html:()=>"대기가 없을 때는 흡수한 에너지 "+f(CUR.E0)+"(= "+U(CUR.E0)+" W/m²)를 지표가 그대로 모두 방출한다고 보고 같은 식으로 계산합니다. 반사율은 같은 값을 씁니다."},
+  GH:{term:"greenhouse", html:()=>"(대기가 있을 때의 지표 기온) − (대기가 없을 때의 지표 기온)입니다."},
+  diff:{term:null, html:()=>"기준 상태(반사율 0.30, 온실 효과 세기 89.7 %)의 지표 기온은 <b>"+f1(C(BASE.T))+" °C</b>입니다. 지금 값과의 차이를 보여 줍니다."},
+  Es:{term:null, html:()=>"상대값으로는 <b>"+f(CUR.Es)+"</b>입니다. (입사 = 100)"},
+  out:{term:null, html:()=>"반사되는 에너지는 제외하고, 우주로 손실되는 지구 복사("+f(CUR.window)+")와 대기의 복사("+f(CUR.up)+")를 더한 값입니다. 상대값으로는 <b>"+f(CUR.window+CUR.up)+"</b>입니다."},
+  warming:{term:"warming", html:()=>{
+    const dE=parseFloat($("eps").value)-EPS0*100;
+    const msg = Math.abs(dE)<0.05 ? "지금은 기준 상태입니다. 온실 효과 세기를 올려 보세요." :
+      (dE>0 ? "온실 효과가 강해져서 ②~⑤가 모두 증가했습니다. (지구 온난화)" : "온실 효과가 약해져서 ②~⑤가 모두 감소했습니다.");
+    return "온실 효과 세기를 높이면 대기 중 온실 기체가 늘어난 경우에 해당합니다.<br><b>"+msg+"</b>";}}
+};
+let popKey=null, popBtn=null;
+function updatePop(){
+  const p=$("pop"); if(!popKey||p.hidden) return;
+  const t=TIPS[popKey]; let body=t.html();
+  p.innerHTML=body; placePop();
+}
+function placePop(){
+  const p=$("pop"), r=popBtn.getBoundingClientRect();
+  const w=p.offsetWidth, left=Math.min(Math.max(8,r.left+window.scrollX-12), window.scrollX+document.documentElement.clientWidth-w-8);
+  p.style.left=left+"px"; p.style.top=(r.bottom+window.scrollY+8)+"px";
+}
+function closePop(){ $("pop").hidden=true; popKey=null; popBtn=null; }
+function togglePop(btn){
+  const k=btn.dataset.tip;
+  if(popKey===k&&popBtn===btn){closePop();return;}
+  popKey=k; popBtn=btn; $("pop").hidden=false; updatePop();
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-tip]");
+  if(b){ togglePop(b); return; }
+  if(!e.target.closest("#pop")) closePop();
+});
+window.addEventListener("resize",()=>{ if(popBtn&&!$("pop").hidden) placePop(); });
+
+/* ===================== 용어집 UI ===================== */
+let lastFocus=null, curTerm=null;
+function showTerm(k){
+  curTerm=k; const g=GLOSSARY[k];
+  document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c.dataset.k===k));
+  $("defbox").innerHTML=`<h3>${g.term}</h3><p style="margin:0">${g.def}</p>`;
+}
+function openG(k){
+  lastFocus=document.activeElement;
+  $("overlay").classList.add("open"); $("overlay").setAttribute("aria-hidden","false");
+  showTerm(k||curTerm||Object.keys(GLOSSARY)[0]);
+  $("closeGlossary").focus();
+}
+function closeG(){ $("overlay").classList.remove("open"); $("overlay").setAttribute("aria-hidden","true"); if(lastFocus) lastFocus.focus(); }
+$("chips").innerHTML=Object.keys(GLOSSARY).map(k=>`<button class="chip" type="button" data-k="${k}" aria-pressed="false">${GLOSSARY[k].term.replace(/ \(.*\)/,"")}</button>`).join("");
+$("chips").addEventListener("click",e=>{const b=e.target.closest(".chip"); if(b) showTerm(b.dataset.k);});
+$("openGlossary").onclick=e=>{e.stopPropagation();closePop();openG();};
+$("closeGlossary").onclick=closeG;
+$("overlay").addEventListener("click",e=>{if(e.target===$("overlay")) closeG();});
+document.addEventListener("keydown",e=>{if(e.key!=="Escape") return; if($("overlay").classList.contains("open")) closeG(); else closePop();});
+
+render();
+</script>
+</body>
+</html>
